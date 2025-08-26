@@ -15,10 +15,13 @@ import {
   ArrowDown,
   ArrowUpDown,
   FilePlus2,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 import { Logo } from "./components/Logo";
 import { Modal } from "./components/Modal";
 import { Typewriter } from "./components/Typewriter";
+import { AnimatePresence, motion } from "framer-motion";
 
 /* =========================================================================
    UI Reusables
@@ -246,6 +249,14 @@ export const App = () => {
     stock: "",
   });
 
+  // Toast (con framer-motion)
+  const [toast, setToast] = useState(null);
+
+  const showToast = (msg, type = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   // Data
   const fetchData = async () => {
     setLoading(true);
@@ -322,8 +333,10 @@ export const App = () => {
       setCreateForm({ nombre: "", precio: "", stock: "" });
       setOpenCreate(false);
       await fetchData();
+      showToast("Registro creado correctamente", "success"); // 👈 icono check
     } catch (e) {
       setError(e.message || "Error al crear");
+      showToast("Error al crear registro", "error"); // 👈 icono X
     } finally {
       setIsSubmitting(false);
     }
@@ -355,7 +368,7 @@ export const App = () => {
     window.location.href = `${API_BASE}/export`;
   };
 
-  const showPaginator = total > limit; // oculto si no supera una página
+  const showPaginator = total > limit;
 
   // Render
   return (
@@ -366,7 +379,37 @@ export const App = () => {
           : "min-h-screen bg-zinc-100 text-zinc-900"
       }
     >
+      {/* Toast (suave con AnimatePresence) */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            key="toast"
+            initial={{ opacity: 0, y: -10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.98 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 ${
+              toast.type === "success"
+                ? darkMode
+                  ? "bg-green-800 text-green-100"
+                  : "bg-green-100 text-green-800"
+                : darkMode
+                ? "bg-red-800 text-red-100"
+                : "bg-red-100 text-red-800"
+            }`}
+          >
+            {toast.type === "success" ? (
+              <CheckCircle size={18} />
+            ) : (
+              <XCircle size={18} />
+            )}
+            <span className="font-medium">{toast.msg}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="mx-auto max-w-6xl px-3 sm:px-4 py-6 sm:py-8 space-y-6 sm:space-y-8">
+        {/* Header */}
         <header className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
           <div className="flex-1 min-w-[220px]">
             <Logo
@@ -552,119 +595,208 @@ export const App = () => {
                     : "divide-y divide-zinc-100"
                 }
               >
-                <div className="md:hidden space-y-3">
-                  {loading ? (
-                    <div className="text-center text-zinc-500 py-6">
+                {loading ? (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="px-4 py-8 text-center text-zinc-500"
+                    >
                       Cargando…
-                    </div>
-                  ) : rows.length === 0 ? (
-                    <div className="text-center text-zinc-500 py-6">
+                    </td>
+                  </tr>
+                ) : rows.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="px-4 py-6 text-center text-zinc-500"
+                    >
                       Sin resultados
-                    </div>
-                  ) : (
-                    rows.map((row, i) => (
-                      <div
-                        key={row?.id ?? i}
-                        className={`rounded-lg border p-4 ${
-                          darkMode
-                            ? "bg-zinc-900 border-zinc-800"
-                            : "bg-white border-zinc-200"
-                        }`}
-                      >
-                        {/* Campos */}
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <div className="text-xs text-zinc-500 mb-1">ID</div>
-                            <TextInput
-                              value={row.id}
-                              onChange={(e) => {
-                                const updated = [...rows];
-                                updated[i].id = e.target.value;
-                                setRows(updated);
-                              }}
-                              placeholder="ID"
-                              dark={darkMode}
-                            />
-                          </div>
-                          <div>
-                            <div className="text-xs text-zinc-500 mb-1">
-                              Precio
-                            </div>
-                            <TextInput
-                              type="number"
-                              value={row.precio}
-                              onChange={(e) => {
-                                const updated = [...rows];
-                                updated[i].precio = e.target.value;
-                                setRows(updated);
-                              }}
-                              placeholder="Precio"
-                              dark={darkMode}
-                            />
-                          </div>
-                          <div className="col-span-2">
-                            <div className="text-xs text-zinc-500 mb-1">
-                              Nombre
-                            </div>
-                            <TextInput
-                              value={row.nombre}
-                              onChange={(e) => {
-                                const updated = [...rows];
-                                updated[i].nombre = e.target.value;
-                                setRows(updated);
-                              }}
-                              placeholder="Nombre"
-                              dark={darkMode}
-                            />
-                          </div>
-                          <div>
-                            <div className="text-xs text-zinc-500 mb-1">
-                              Stock
-                            </div>
-                            <TextInput
-                              type="number"
-                              value={row.stock}
-                              onChange={(e) => {
-                                const updated = [...rows];
-                                updated[i].stock = e.target.value;
-                                setRows(updated);
-                              }}
-                              placeholder="Stock"
-                              dark={darkMode}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Botones */}
-                        <div className="mt-4 flex justify-end gap-2">
+                    </td>
+                  </tr>
+                ) : (
+                  rows.map((row, i) => (
+                    <tr
+                      key={row?.id ?? i}
+                      className="hover:bg-indigo-50/30 dark:hover:bg-indigo-500/5"
+                    >
+                      <td className="px-3 py-2 w-[10rem]">
+                        <TextInput
+                          value={row.id}
+                          onChange={(e) => {
+                            const updated = [...rows];
+                            updated[i].id = e.target.value;
+                            setRows(updated);
+                          }}
+                          placeholder="ID"
+                          dark={darkMode}
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <TextInput
+                          value={row.nombre}
+                          onChange={(e) => {
+                            const updated = [...rows];
+                            updated[i].nombre = e.target.value;
+                            setRows(updated);
+                          }}
+                          placeholder="Nombre"
+                          dark={darkMode}
+                        />
+                      </td>
+                      <td className="px-3 py-2 w-[8rem]">
+                        <TextInput
+                          type="number"
+                          value={row.precio}
+                          onChange={(e) => {
+                            const updated = [...rows];
+                            updated[i].precio = e.target.value;
+                            setRows(updated);
+                          }}
+                          placeholder="Precio"
+                          dark={darkMode}
+                        />
+                      </td>
+                      <td className="px-3 py-2 w-[7rem]">
+                        <TextInput
+                          type="number"
+                          value={row.stock}
+                          onChange={(e) => {
+                            const updated = [...rows];
+                            updated[i].stock = e.target.value;
+                            setRows(updated);
+                          }}
+                          placeholder="Stock"
+                          dark={darkMode}
+                        />
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
                           <IconButton
                             title="Guardar"
                             onClick={() => handleUpdate(i, row)}
                             dark={darkMode}
-                            className="text-xs"
                           >
                             <Save size={16} />
-                            Guardar
+                            <span className="hidden sm:inline">Guardar</span>
                           </IconButton>
                           <IconButton
                             title="Eliminar"
                             onClick={() => handleDelete(i)}
                             dark={darkMode}
-                            className="text-xs"
                           >
                             <Trash2 size={16} />
-                            Borrar
+                            <span className="hidden sm:inline">Borrar</span>
                           </IconButton>
                         </div>
-                      </div>
-                    ))
-                  )}
-                </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
 
-          {/* Paginador abajo (oculto si no hay más de una página) */}
+          {/* Vista mobile en cards */}
+          <div className="md:hidden space-y-3 mt-4">
+            {loading ? (
+              <div className="text-center text-zinc-500 py-6">Cargando…</div>
+            ) : rows.length === 0 ? (
+              <div className="text-center text-zinc-500 py-6">
+                Sin resultados
+              </div>
+            ) : (
+              rows.map((row, i) => (
+                <div
+                  key={row?.id ?? i}
+                  className={`rounded-lg border p-4 ${
+                    darkMode
+                      ? "bg-zinc-900 border-zinc-800"
+                      : "bg-white border-zinc-200"
+                  }`}
+                >
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <div className="text-xs text-zinc-500 mb-1">ID</div>
+                      <TextInput
+                        value={row.id}
+                        onChange={(e) => {
+                          const updated = [...rows];
+                          updated[i].id = e.target.value;
+                          setRows(updated);
+                        }}
+                        placeholder="ID"
+                        dark={darkMode}
+                      />
+                    </div>
+                    <div>
+                      <div className="text-xs text-zinc-500 mb-1">Precio</div>
+                      <TextInput
+                        type="number"
+                        value={row.precio}
+                        onChange={(e) => {
+                          const updated = [...rows];
+                          updated[i].precio = e.target.value;
+                          setRows(updated);
+                        }}
+                        placeholder="Precio"
+                        dark={darkMode}
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <div className="text-xs text-zinc-500 mb-1">Nombre</div>
+                      <TextInput
+                        value={row.nombre}
+                        onChange={(e) => {
+                          const updated = [...rows];
+                          updated[i].nombre = e.target.value;
+                          setRows(updated);
+                        }}
+                        placeholder="Nombre"
+                        dark={darkMode}
+                      />
+                    </div>
+                    <div>
+                      <div className="text-xs text-zinc-500 mb-1">Stock</div>
+                      <TextInput
+                        type="number"
+                        value={row.stock}
+                        onChange={(e) => {
+                          const updated = [...rows];
+                          updated[i].stock = e.target.value;
+                          setRows(updated);
+                        }}
+                        placeholder="Stock"
+                        dark={darkMode}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex justify-end gap-2">
+                    <IconButton
+                      title="Guardar"
+                      onClick={() => handleUpdate(i, row)}
+                      dark={darkMode}
+                      className="text-xs"
+                    >
+                      <Save size={16} />
+                      Guardar
+                    </IconButton>
+                    <IconButton
+                      title="Eliminar"
+                      onClick={() => handleDelete(i)}
+                      dark={darkMode}
+                      className="text-xs"
+                    >
+                      <Trash2 size={16} />
+                      Borrar
+                    </IconButton>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Paginador */}
           {showPaginator && (
             <div className="mt-4">
               <DataControls

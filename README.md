@@ -6,37 +6,28 @@ Desktop (md:block): tabla con encabezados clicables para ordenar, edición inlin
 
 🧯 Validaciones & UX
 
-En el modal de “Crear ítem”:
+    En el modal de “Crear ítem”:
 
-Si falta algún dato: mensaje en rojo y marcado del input con borde rojo.
+    Si falta algún dato: mensaje en rojo y marcado del input con borde rojo.
+    Botón Cancelar con estilo suave (borde + hover).
 
-Botón Cancelar con estilo suave (borde + hover).
-
-En el listado:
-
-Estados de cargando y sin resultados claros.
-
-Errores de red o de validación aparecen en el alert superior.
+    En el listado:
+        Estados de cargando y sin resultados claros.
+        Errores de red o de validación aparecen en el alert superior.
 
 🎨 Detalles de UI
 
-Dark/Light: el darkMode aplica clases a contenedores, inputs y botones.
-
-Typewriter: título animado con cursor parpadeando y velocidad ajustable.
-
-Modal: apertura/cierre con escala y fade usando Framer Motion.
+    Dark/Light: el darkMode aplica clases a contenedores, inputs y botones.
+    Typewriter: título animado con cursor parpadeando y velocidad ajustable.
+    Modal: apertura/cierre con escala y fade usando Framer Motion.
 
 🧪 Ideas para mejorar (roadmap cortito)
 
-Soporte de filtros y búsquedas.
-
-Ordenamiento multi-columna.
-
-Edición masiva y acciones por lote.
-
-Campos custom y validaciones avanzadas (schemas).
-
-Manejo de errores con toasts.
+    Soporte de filtros y búsquedas.
+    Ordenamiento multi-columna.
+    Edición masiva y acciones por lote.
+    Campos custom y validaciones avanzadas (schemas).
+    Manejo de errores con toasts.
 
 📄 Licencia
 
