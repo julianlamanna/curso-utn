@@ -322,24 +322,37 @@ export const App = () => {
   const handleCreate = async (payload) => {
     setIsSubmitting(true);
     setError(null);
+
     if (!payload.nombre || !payload.precio || !payload.stock) {
       setError("Completá todos los campos para crear el ítem.");
       setIsSubmitting(false);
       return;
     }
+
     try {
       const res = await fetch(`${API_BASE}/data`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
+
+        // 👇 chequeo específico para 409 (duplicado)
+        if (res.status === 409) {
+          const msg = json?.errors?.[0]?.msg || "Registro duplicado";
+          showToast(msg, "error"); // 👈 TOAST rojo
+          setIsSubmitting(false);
+          return;
+        }
+
         const msg =
           json?.errors?.map((e) => e.msg).join(", ") ||
           "No se pudo crear el ítem";
         throw new Error(msg);
       }
+
       setCreateForm({ nombre: "", precio: "", stock: "" });
       setOpenCreate(false);
       await fetchData();
@@ -352,10 +365,11 @@ export const App = () => {
     }
   };
 
-  // ⚠️ Usar SIEMPRE el ID real
+  // ⚠️ Usar SIEMPRE el ID real (con fallback a índice si no hay id)
   const handleUpdate = async (_i, row) => {
     try {
-      await fetch(`${API_BASE}/data/${row.id}`, {
+      const target = row?.id ?? _i;
+      await fetch(`${API_BASE}/data/${target}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(row),
@@ -368,7 +382,7 @@ export const App = () => {
 
   const handleDelete = async (row, i) => {
     try {
-      const target = row?.id != null ? row.id : i; // fallback a índice
+      const target = row?.id != null ? row.id : i;
       await fetch(`${API_BASE}/data/${target}`, { method: "DELETE" });
       await fetchData();
     } catch {
@@ -376,107 +390,105 @@ export const App = () => {
     }
   };
 
-  // Helper: obtener TODOS los IDs (pagina por página)
+  /* ===================== Helpers para borrar todos ===================== */
+
+  // Traer TODOS los IDs (pagina por página)
   const fetchAllIds = async () => {
-    const ids = [];
+    const acc = [];
     let p = 1;
-    const lim = Math.max(50, limit); // pedir de a 50 mínimo
+    const lim = 200; // pedir bastante para reducir vueltas
     while (true) {
       const res = await fetch(
         `${API_BASE}/data?page=${p}&limit=${lim}&sortBy=${sortBy}&order=${order}`
       );
       if (!res.ok) break;
       const json = await res.json();
-      const data = json.data || [];
-      ids.push(...data.map((r) => r.id));
-      const totalRemote = json.total || 0;
-      if (ids.length >= totalRemote || data.length === 0) break;
+      const data = json?.data ?? [];
+      acc.push(...data.map((r) => r.id));
+      const totalRemote = json?.total ?? 0;
+      if (acc.length >= totalRemote || data.length === 0) break;
       p += 1;
     }
-    return ids;
+    return acc;
+  };
+
+  const remainingOf = (before, after) => {
+    const setA = new Set(after);
+    return before.filter((id) => setA.has(id));
   };
 
   const [isDeletingAll, setIsDeletingAll] = useState(false);
 
   const handleDeleteAll = async () => {
-    if (isDeletingAll || total <= 0) return;
-
-    const ok = window.confirm("¿Seguro que querés borrar TODOS los registros?");
-    if (!ok) return;
+    if (total <= 0 || isDeletingAll) return;
+    if (!window.confirm("¿Seguro que querés borrar TODOS los registros?"))
+      return;
 
     setIsDeletingAll(true);
     setError(null);
-
-    // helper para traer TODOS los IDs en caso de necesitarlos
-    const fetchAllIds = async () => {
-      const ids = [];
-      let p = 1;
-      const lim = Math.max(100, limit);
-      while (true) {
-        const res = await fetch(
-          `${API_BASE}/data?page=${p}&limit=${lim}&sortBy=${sortBy}&order=${order}`
-        );
-        if (!res.ok) break;
-        const json = await res.json();
-        const data = json.data || [];
-        ids.push(...data.map((r) => r.id).filter((v) => v != null));
-        const totalRemote = json.total || 0;
-        if (ids.length >= totalRemote || data.length === 0) break;
-        p += 1;
-      }
-      return ids;
-    };
-
-    // helper final: borrar por índice descendente (0..n-1) si la API indexa por posición
-    const deleteByDescendingIndex = async () => {
-      // obtengo un total fresco por las dudas
-      const res = await fetch(`${API_BASE}/data?page=1&limit=1`);
-      const json = res.ok ? await res.json() : { total };
-      const n = json?.total ?? total ?? 0;
-      for (let idx = n - 1; idx >= 0; idx--) {
-        await fetch(`${API_BASE}/data/${idx}`, { method: "DELETE" });
-      }
-    };
-
     try {
-      // 1) intento masivo directo
-      let res = await fetch(`${API_BASE}/data`, { method: "DELETE" });
+      // IDs existentes al inicio (los que queremos que se vayan)
+      const initialIds = await fetchAllIds();
+      if (initialIds.length === 0) {
+        setPage(1);
+        await fetchData();
+        showToast("No había registros para borrar", "success");
+        return;
+      }
 
-      if (!res.ok) {
-        // 2) intento masivo alternativo con IDs
-        const ids = await fetchAllIds();
+      // 1) Intento masivo directo (aunque responda OK, verificamos)
+      try {
+        await fetch(`${API_BASE}/data`, { method: "DELETE" });
+      } catch {}
 
-        if (ids.length) {
-          const bulk = await fetch(`${API_BASE}/data/bulk-delete`, {
+      let after = await fetchAllIds();
+      let remaining = remainingOf(initialIds, after);
+
+      // 2) Si quedaron, intento bulk con IDs que aún siguen
+      if (remaining.length > 0) {
+        try {
+          await fetch(`${API_BASE}/data/bulk-delete`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ids }),
+            body: JSON.stringify({ ids: remaining }),
           });
+        } catch {}
+        after = await fetchAllIds();
+        remaining = remainingOf(initialIds, after);
+      }
 
-          // 3) si falla el bulk, borro uno a uno por ID
-          if (!bulk.ok) {
-            for (const id of ids) {
-              await fetch(`${API_BASE}/data/${id}`, { method: "DELETE" });
-            }
-          }
-        } else {
-          // si no tengo IDs válidos, voy directo a índice
-          await deleteByDescendingIndex();
-        }
-
-        // chequeo si aún quedan (por si la API no borró todo)
-        const check = await fetch(`${API_BASE}/data?page=1&limit=1`);
-        const left = check.ok ? (await check.json()).total || 0 : 0;
-        if (left > 0) {
-          // 4) remate por índice descendente
-          await deleteByDescendingIndex();
+      // 3) Si todavía quedaron, borro uno por uno por ID
+      if (remaining.length > 0) {
+        for (const id of remaining) {
+          try {
+            await fetch(`${API_BASE}/data/${id}`, { method: "DELETE" });
+          } catch {}
         }
       }
 
+      // 4) Fallback final: si aún persiste alguno (p.ej. backend solo por índice),
+      // borramos por índice 0 en bucle hasta vaciar o hasta que falle.
+      after = await fetchAllIds();
+      remaining = remainingOf(initialIds, after);
+      if (remaining.length > 0) {
+        for (let guard = 0; guard < remaining.length + 5; guard++) {
+          try {
+            const res = await fetch(`${API_BASE}/data/0`, { method: "DELETE" });
+            if (!res.ok) break; // cortamos si el endpoint no soporta índice
+          } catch {
+            break;
+          }
+          const rest = await fetchAllIds();
+          if (rest.length === 0) break; // ya no queda nada
+        }
+      }
+
+      // Refresco desde la página 1 (por si nos quedamos sin data)
+      setPage(1);
       await fetchData();
       showToast("Se borraron todos los registros", "success");
     } catch (e) {
-      setError(e.message || "No se pudieron borrar todos los registros");
+      setError(e?.message || "No se pudieron borrar todos los registros");
       showToast("Error al borrar todos", "error");
     } finally {
       setIsDeletingAll(false);
@@ -760,7 +772,7 @@ export const App = () => {
                       key={row?.id ?? i}
                       className="hover:bg-indigo-50/30 dark:hover:bg-indigo-500/5"
                     >
-                      {/* ID ahora es solo lectura */}
+                      {/* ID solo lectura */}
                       <td className="px-3 py-2 w-[10rem]">
                         <TextInput
                           value={row.id}
@@ -912,7 +924,7 @@ export const App = () => {
                     </IconButton>
                     <IconButton
                       title="Eliminar"
-                      onClick={() => handleDelete(row)}
+                      onClick={() => handleDelete(row, i)}
                       dark={darkMode}
                       className="text-xs"
                     >
