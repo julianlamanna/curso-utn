@@ -369,11 +369,13 @@ export const App = () => {
         {/* Header */}
         <header className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
           <div className="flex-1 min-w-[220px]">
-            <Logo
-              primaryColor={darkMode ? "#a1a1aa" : "#828282"}
-              secondaryColor={darkMode ? "#fff" : "#323232"}
-            />
-            <h1 className="mt-2 text-lg sm:text-xl font-bold">
+            <a href="/" className="block w-3/5 mx-auto sm:w-auto sm:mx-0">
+              <Logo
+                primaryColor={darkMode ? "#a1a1aa" : "#828282"}
+                secondaryColor={darkMode ? "#fff" : "#323232"}
+              />
+            </a>
+            <h1 className="mt-2 text-lg sm:text-xl font-bold text-center sm:text-left">
               <Typewriter text="Gestor de CSV" speed={0.15} />
             </h1>
           </div>
