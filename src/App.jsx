@@ -44,8 +44,8 @@ export const IconButton = memo(function IconButton({
       disabled={disabled}
       className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium shadow-sm transition hover:cursor-pointer ${
         dark
-          ? "bg-zinc-800 text-zinc-100 hover:bg-zinc-700 disabled:opacity-50"
-          : "bg-white text-zinc-800 hover:bg-zinc-50 disabled:opacity-50 border border-zinc-200"
+          ? "bg-zinc-800 text-zinc-100 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          : "bg-white text-zinc-800 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed border border-zinc-200"
       } ${className}`}
     >
       {children}
@@ -55,7 +55,15 @@ export const IconButton = memo(function IconButton({
 
 export const TextInput = memo(
   forwardRef(function TextInput(
-    { value, onChange, type = "text", placeholder, className = "", dark },
+    {
+      value,
+      onChange,
+      type = "text",
+      placeholder,
+      className = "",
+      dark,
+      readOnly = false,
+    },
     ref
   ) {
     return (
@@ -65,11 +73,12 @@ export const TextInput = memo(
         onChange={onChange}
         type={type}
         placeholder={placeholder}
+        readOnly={readOnly}
         className={`w-full rounded-lg border px-3 py-2 text-sm outline-none transition focus:ring-2 ${
           dark
             ? "bg-zinc-900 border-zinc-700 text-zinc-100 focus:ring-indigo-500"
             : "bg-white border-zinc-300 text-zinc-900 focus:ring-indigo-300"
-        } ${className}`}
+        } ${readOnly ? "opacity-70 cursor-not-allowed" : ""} ${className}`}
       />
     );
   })
@@ -237,6 +246,8 @@ export const App = () => {
   const [order, setOrder] = useState("asc");
   const [total, setTotal] = useState(0);
 
+  const canDownload = !loading && total > 0;
+
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
@@ -249,9 +260,8 @@ export const App = () => {
     stock: "",
   });
 
-  // Toast (con framer-motion)
+  // Toast
   const [toast, setToast] = useState(null);
-
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
@@ -333,18 +343,19 @@ export const App = () => {
       setCreateForm({ nombre: "", precio: "", stock: "" });
       setOpenCreate(false);
       await fetchData();
-      showToast("Registro creado correctamente", "success"); // 👈 icono check
+      showToast("Registro creado correctamente", "success");
     } catch (e) {
       setError(e.message || "Error al crear");
-      showToast("Error al crear registro", "error"); // 👈 icono X
+      showToast("Error al crear registro", "error");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleUpdate = async (i, row) => {
+  // ⚠️ Usar SIEMPRE el ID real
+  const handleUpdate = async (_i, row) => {
     try {
-      await fetch(`${API_BASE}/data/${i}`, {
+      await fetch(`${API_BASE}/data/${row.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(row),
@@ -355,16 +366,125 @@ export const App = () => {
     }
   };
 
-  const handleDelete = async (i) => {
+  const handleDelete = async (row, i) => {
     try {
-      await fetch(`${API_BASE}/data/${i}`, { method: "DELETE" });
+      const target = row?.id != null ? row.id : i; // fallback a índice
+      await fetch(`${API_BASE}/data/${target}`, { method: "DELETE" });
       await fetchData();
     } catch {
       setError("No se pudo eliminar");
     }
   };
 
+  // Helper: obtener TODOS los IDs (pagina por página)
+  const fetchAllIds = async () => {
+    const ids = [];
+    let p = 1;
+    const lim = Math.max(50, limit); // pedir de a 50 mínimo
+    while (true) {
+      const res = await fetch(
+        `${API_BASE}/data?page=${p}&limit=${lim}&sortBy=${sortBy}&order=${order}`
+      );
+      if (!res.ok) break;
+      const json = await res.json();
+      const data = json.data || [];
+      ids.push(...data.map((r) => r.id));
+      const totalRemote = json.total || 0;
+      if (ids.length >= totalRemote || data.length === 0) break;
+      p += 1;
+    }
+    return ids;
+  };
+
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+
+  const handleDeleteAll = async () => {
+    if (isDeletingAll || total <= 0) return;
+
+    const ok = window.confirm("¿Seguro que querés borrar TODOS los registros?");
+    if (!ok) return;
+
+    setIsDeletingAll(true);
+    setError(null);
+
+    // helper para traer TODOS los IDs en caso de necesitarlos
+    const fetchAllIds = async () => {
+      const ids = [];
+      let p = 1;
+      const lim = Math.max(100, limit);
+      while (true) {
+        const res = await fetch(
+          `${API_BASE}/data?page=${p}&limit=${lim}&sortBy=${sortBy}&order=${order}`
+        );
+        if (!res.ok) break;
+        const json = await res.json();
+        const data = json.data || [];
+        ids.push(...data.map((r) => r.id).filter((v) => v != null));
+        const totalRemote = json.total || 0;
+        if (ids.length >= totalRemote || data.length === 0) break;
+        p += 1;
+      }
+      return ids;
+    };
+
+    // helper final: borrar por índice descendente (0..n-1) si la API indexa por posición
+    const deleteByDescendingIndex = async () => {
+      // obtengo un total fresco por las dudas
+      const res = await fetch(`${API_BASE}/data?page=1&limit=1`);
+      const json = res.ok ? await res.json() : { total };
+      const n = json?.total ?? total ?? 0;
+      for (let idx = n - 1; idx >= 0; idx--) {
+        await fetch(`${API_BASE}/data/${idx}`, { method: "DELETE" });
+      }
+    };
+
+    try {
+      // 1) intento masivo directo
+      let res = await fetch(`${API_BASE}/data`, { method: "DELETE" });
+
+      if (!res.ok) {
+        // 2) intento masivo alternativo con IDs
+        const ids = await fetchAllIds();
+
+        if (ids.length) {
+          const bulk = await fetch(`${API_BASE}/data/bulk-delete`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ids }),
+          });
+
+          // 3) si falla el bulk, borro uno a uno por ID
+          if (!bulk.ok) {
+            for (const id of ids) {
+              await fetch(`${API_BASE}/data/${id}`, { method: "DELETE" });
+            }
+          }
+        } else {
+          // si no tengo IDs válidos, voy directo a índice
+          await deleteByDescendingIndex();
+        }
+
+        // chequeo si aún quedan (por si la API no borró todo)
+        const check = await fetch(`${API_BASE}/data?page=1&limit=1`);
+        const left = check.ok ? (await check.json()).total || 0 : 0;
+        if (left > 0) {
+          // 4) remate por índice descendente
+          await deleteByDescendingIndex();
+        }
+      }
+
+      await fetchData();
+      showToast("Se borraron todos los registros", "success");
+    } catch (e) {
+      setError(e.message || "No se pudieron borrar todos los registros");
+      showToast("Error al borrar todos", "error");
+    } finally {
+      setIsDeletingAll(false);
+    }
+  };
+
   const downloadCSV = () => {
+    if (total <= 0) return;
     window.location.href = `${API_BASE}/export`;
   };
 
@@ -379,7 +499,7 @@ export const App = () => {
           : "min-h-screen bg-zinc-100 text-zinc-900"
       }
     >
-      {/* Toast (suave con AnimatePresence) */}
+      {/* Toast */}
       <AnimatePresence>
         {toast && (
           <motion.div
@@ -497,14 +617,35 @@ export const App = () => {
                 <FilePlus2 size={18} />{" "}
                 <span className="hidden sm:inline">Crear Registro</span>
               </IconButton>
+
               <IconButton
                 title="Download"
                 onClick={downloadCSV}
+                disabled={!canDownload}
                 dark={darkMode}
               >
                 <Download size={18} />
                 <span className="hidden sm:inline">Download</span>
               </IconButton>
+
+              {canDownload && (
+                <IconButton
+                  title="Borrar todos"
+                  onClick={handleDeleteAll}
+                  disabled={isDeletingAll}
+                  dark={darkMode}
+                  className={
+                    darkMode
+                      ? "border border-red-700 bg-red-900/30 text-red-200 hover:bg-red-900/50"
+                      : "border border-red-300 bg-red-50 text-red-700 hover:bg-red-100"
+                  }
+                >
+                  <Trash2 size={18} />
+                  <span className="hidden sm:inline">
+                    {isDeletingAll ? "Borrando…" : "Borrar todos"}
+                  </span>
+                </IconButton>
+              )}
             </div>
           </div>
 
@@ -619,14 +760,11 @@ export const App = () => {
                       key={row?.id ?? i}
                       className="hover:bg-indigo-50/30 dark:hover:bg-indigo-500/5"
                     >
+                      {/* ID ahora es solo lectura */}
                       <td className="px-3 py-2 w-[10rem]">
                         <TextInput
                           value={row.id}
-                          onChange={(e) => {
-                            const updated = [...rows];
-                            updated[i].id = e.target.value;
-                            setRows(updated);
-                          }}
+                          readOnly
                           placeholder="ID"
                           dark={darkMode}
                         />
@@ -681,7 +819,7 @@ export const App = () => {
                           </IconButton>
                           <IconButton
                             title="Eliminar"
-                            onClick={() => handleDelete(i)}
+                            onClick={() => handleDelete(row, i)}
                             dark={darkMode}
                           >
                             <Trash2 size={16} />
@@ -717,16 +855,7 @@ export const App = () => {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <div className="text-xs text-zinc-500 mb-1">ID</div>
-                      <TextInput
-                        value={row.id}
-                        onChange={(e) => {
-                          const updated = [...rows];
-                          updated[i].id = e.target.value;
-                          setRows(updated);
-                        }}
-                        placeholder="ID"
-                        dark={darkMode}
-                      />
+                      <TextInput value={row.id} readOnly dark={darkMode} />
                     </div>
                     <div>
                       <div className="text-xs text-zinc-500 mb-1">Precio</div>
@@ -783,7 +912,7 @@ export const App = () => {
                     </IconButton>
                     <IconButton
                       title="Eliminar"
-                      onClick={() => handleDelete(i)}
+                      onClick={() => handleDelete(row)}
                       dark={darkMode}
                       className="text-xs"
                     >
