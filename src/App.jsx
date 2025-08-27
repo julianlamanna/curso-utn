@@ -13,6 +13,9 @@ import {
   FilePlus2,
   CheckCircle,
   XCircle,
+  Activity,
+  HardDriveUpload,
+  Layers,
 } from "lucide-react";
 import { Logo } from "./components/Logo";
 import { Modal } from "./components/Modal";
@@ -411,7 +414,12 @@ export const App = () => {
               : "rounded-sm border border-zinc-200 bg-white p-6"
           }
         >
-          <div className="flex flex-col items-center gap-4">
+          <div className="flex flex-col  gap-4">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <HardDriveUpload size={18} />
+              Drop area
+            </h2>
+
             <div className="w-full flex-1">
               <FileDropZone onFile={setFile} dark={darkMode} />
               {file && (
@@ -442,7 +450,10 @@ export const App = () => {
           }
         >
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Ítems</h2>
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Layers size={18} />
+              Panel de ítems
+            </h2>
             <div className="flex items-center gap-2">
               <IconButton
                 title="Crear Registro"
