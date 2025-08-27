@@ -21,14 +21,5 @@ Desktop (md:block): tabla con encabezados clicables para ordenar, edición inlin
     Typewriter: título animado con cursor parpadeando y velocidad ajustable.
     Modal: apertura/cierre con escala y fade usando Framer Motion.
 
-🧪 Ideas para mejorar (roadmap cortito)
-
-    Soporte de filtros y búsquedas.
-    Ordenamiento multi-columna.
-    Edición masiva y acciones por lote.
-    Campos custom y validaciones avanzadas (schemas).
-    Manejo de errores con toasts.
-
 📄 Licencia
-
-Libre uso para proyectos chicos, demos o internas. Hacé magia ✨
+Libre uso para proyectos chicos, demos o internas.
