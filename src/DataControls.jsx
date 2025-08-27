@@ -20,7 +20,7 @@ export function DataControls({
 
   const labelClass = darkMode
     ? "text-amber-600 font-semibold"
-    : "text-yellow-600 font-semibold";
+    : "text-gray-600 font-semibold";
   const selectClass = darkMode
     ? "rounded-md border border-zinc-700 bg-zinc-800 px-2 py-1 text-sm text-zinc-100"
     : "rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm text-zinc-800";
@@ -79,8 +79,8 @@ export function DataControls({
           <div
             className={
               darkMode
-                ? "rounded-md bg-yellow-500/10 px-3 py-2 text-amber-600 text-sm font-semibold"
-                : "rounded-md bg-yellow-100 px-3 py-2 text-yellow-700 text-sm font-semibold"
+                ? "rounded-md bg-gray-500/10 px-3 py-2 text-gray-600 text-sm font-semibold"
+                : "rounded-md bg-gray-200 px-3 py-2 text-gray-700 text-sm font-semibold"
             }
           >
             Página {page} / {totalPages}

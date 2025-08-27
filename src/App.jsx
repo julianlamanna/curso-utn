@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, memo, forwardRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import "./index.css";
 import { DataControls } from "./DataControls";
 import { FileDropZone } from "./FileDropZone";
@@ -6,14 +6,10 @@ import {
   Moon,
   Sun,
   Upload,
-  Plus,
   Save,
   Trash2,
   Download,
   RefreshCw,
-  ArrowUp,
-  ArrowDown,
-  ArrowUpDown,
   FilePlus2,
   CheckCircle,
   XCircle,
@@ -23,208 +19,13 @@ import { Modal } from "./components/Modal";
 import { Typewriter } from "./components/Typewriter";
 import { AnimatePresence, motion } from "framer-motion";
 
-/* =========================================================================
-   UI Reusables
-   ========================================================================= */
-export const IconButton = memo(function IconButton({
-  title,
-  onClick,
-  disabled,
-  children,
-  className = "",
-  dark,
-  type = "button",
-}) {
-  return (
-    <button
-      type={type}
-      title={title}
-      aria-label={title}
-      onClick={onClick}
-      disabled={disabled}
-      className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium shadow-sm transition hover:cursor-pointer ${
-        dark
-          ? "bg-zinc-800 text-zinc-100 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          : "bg-white text-zinc-800 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed border border-zinc-200"
-      } ${className}`}
-    >
-      {children}
-    </button>
-  );
-});
+// 🔽 Componentes externalizados
+import { IconButton } from "./components/ui/IconButton";
+import { TextInput } from "./components/ui/TextInput";
+import { SortHeader } from "./components/table/SortHeader";
+import { CreateItemForm } from "./components/forms/CreateItemForm";
+import { ActivityLog } from "./components/activity/ActivityLog";
 
-export const TextInput = memo(
-  forwardRef(function TextInput(
-    {
-      value,
-      onChange,
-      type = "text",
-      placeholder,
-      className = "",
-      dark,
-      readOnly = false,
-    },
-    ref
-  ) {
-    return (
-      <input
-        ref={ref}
-        value={value}
-        onChange={onChange}
-        type={type}
-        placeholder={placeholder}
-        readOnly={readOnly}
-        className={`w-full rounded-lg border px-3 py-2 text-sm outline-none transition focus:ring-2 ${
-          dark
-            ? "bg-zinc-900 border-zinc-700 text-zinc-100 focus:ring-indigo-500"
-            : "bg-white border-zinc-300 text-zinc-900 focus:ring-indigo-300"
-        } ${readOnly ? "opacity-70 cursor-not-allowed" : ""} ${className}`}
-      />
-    );
-  })
-);
-
-/* =========================================================================
-   Header de columna con orden dinámico
-   ========================================================================= */
-const SortHeader = ({
-  label,
-  field,
-  sortBy,
-  order,
-  setSortBy,
-  setOrder,
-  dark,
-}) => {
-  const isActive = sortBy === field;
-  const Icon = !isActive ? ArrowUpDown : order === "asc" ? ArrowUp : ArrowDown;
-
-  const onClick = () => {
-    if (isActive) setOrder((o) => (o === "asc" ? "desc" : "asc"));
-    else {
-      setSortBy(field);
-      setOrder("asc");
-    }
-  };
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`group inline-flex items-center gap-1 px-3 py-2 -mx-3 -my-2 rounded ${
-        dark
-          ? "hover:bg-zinc-800 text-zinc-300"
-          : "hover:bg-zinc-100 text-zinc-600"
-      }`}
-    >
-      <span className="font-medium">{label}</span>
-      <Icon size={14} className={isActive ? "text-amber-600" : "opacity-60"} />
-    </button>
-  );
-};
-
-/* =========================================================================
-   Form del Modal (crear ítem)
-   ========================================================================= */
-const CreateItemForm = React.memo(function CreateItemForm({
-  dark,
-  values,
-  setValues,
-  submitting,
-  onSubmit,
-  onCancel,
-}) {
-  const firstRef = React.useRef(null);
-  const [localError, setLocalError] = useState("");
-
-  useEffect(() => {
-    firstRef.current?.focus();
-  }, []);
-
-  const handleSubmit = () => {
-    if (!values.nombre || !values.precio || !values.stock) {
-      setLocalError("⚠️ Debe llenar todos los campos.");
-      return;
-    }
-    setLocalError("");
-    onSubmit();
-  };
-
-  const invalidNombre = !!localError && !values.nombre;
-  const invalidPrecio = !!localError && !values.precio;
-  const invalidStock = !!localError && !values.stock;
-
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        handleSubmit();
-      }}
-    >
-      <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-3">
-        <TextInput
-          ref={firstRef}
-          placeholder="Nombre"
-          value={values.nombre}
-          onChange={(e) => setValues({ ...values, nombre: e.target.value })}
-          dark={dark}
-          className={invalidNombre ? "border-red-500 focus:ring-red-400" : ""}
-        />
-        <TextInput
-          type="number"
-          placeholder="Precio"
-          value={values.precio}
-          onChange={(e) => setValues({ ...values, precio: e.target.value })}
-          dark={dark}
-          className={invalidPrecio ? "border-red-500 focus:ring-red-400" : ""}
-        />
-        <TextInput
-          type="number"
-          placeholder="Stock"
-          value={values.stock}
-          onChange={(e) => setValues({ ...values, stock: e.target.value })}
-          dark={dark}
-          className={invalidStock ? "border-red-500 focus:ring-red-400" : ""}
-        />
-      </div>
-
-      {localError && (
-        <div className="mt-3 text-sm text-red-600 dark:text-red-400">
-          {localError}
-        </div>
-      )}
-
-      <div className="mt-5 sm:mt-6 flex flex-col sm:flex-row justify-end gap-2">
-        <IconButton
-          title="Cancelar"
-          onClick={onCancel}
-          dark={dark}
-          className={
-            dark
-              ? "bg-transparent border border-zinc-600 text-zinc-300 hover:bg-zinc-800"
-              : "bg-transparent border border-zinc-300 text-zinc-700 hover:bg-zinc-100"
-          }
-        >
-          Cancelar
-        </IconButton>
-
-        <IconButton
-          title="Crear"
-          type="submit"
-          disabled={submitting}
-          dark={dark}
-          className="w-full sm:w-auto"
-        >
-          <Plus size={18} /> {submitting ? "Creando…" : "Crear"}
-        </IconButton>
-      </div>
-    </form>
-  );
-});
-
-/* =========================================================================
-   App
-   ========================================================================= */
 export const App = () => {
   // Config
   const API_BASE = useMemo(
@@ -251,6 +52,20 @@ export const App = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+
+  // Historial local (si luego lo querés renderizar)
+  const [history, setHistory] = useState([]);
+  const pushHistory = (entry) => {
+    setHistory((prev) => [
+      {
+        id: crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`,
+        ts: new Date().toISOString(),
+        ...entry,
+      },
+      ...prev,
+    ]);
+  };
+  const clearHistory = () => setHistory([]);
 
   // Modal crear
   const [openCreate, setOpenCreate] = useState(false);
@@ -312,8 +127,11 @@ export const App = () => {
       }
       setFile(null);
       await fetchData();
+      showToast("Archivo importado", "success");
+      pushHistory({ action: "upload", detail: file.name });
     } catch (e) {
       setError(e.message || "Error de red al subir el archivo");
+      showToast("Error al importar", "error");
     } finally {
       setIsUploading(false);
     }
@@ -338,15 +156,12 @@ export const App = () => {
 
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-
-        // 👇 chequeo específico para 409 (duplicado)
         if (res.status === 409) {
           const msg = json?.errors?.[0]?.msg || "Registro duplicado";
-          showToast(msg, "error"); // 👈 TOAST rojo
+          showToast(msg, "error");
           setIsSubmitting(false);
           return;
         }
-
         const msg =
           json?.errors?.map((e) => e.msg).join(", ") ||
           "No se pudo crear el ítem";
@@ -357,6 +172,7 @@ export const App = () => {
       setOpenCreate(false);
       await fetchData();
       showToast("Registro creado correctamente", "success");
+      pushHistory({ action: "create", detail: payload.nombre });
     } catch (e) {
       setError(e.message || "Error al crear");
       showToast("Error al crear registro", "error");
@@ -375,8 +191,11 @@ export const App = () => {
         body: JSON.stringify(row),
       });
       await fetchData();
+      showToast("Cambios guardados", "success");
+      pushHistory({ action: "update", detail: `ID ${target}` });
     } catch {
       setError("No se pudo guardar el cambio");
+      showToast("Error al guardar", "error");
     }
   };
 
@@ -385,8 +204,11 @@ export const App = () => {
       const target = row?.id != null ? row.id : i;
       await fetch(`${API_BASE}/data/${target}`, { method: "DELETE" });
       await fetchData();
+      showToast("Registro eliminado", "success");
+      pushHistory({ action: "delete", detail: `ID ${target}` });
     } catch {
       setError("No se pudo eliminar");
+      showToast("Error al eliminar", "error");
     }
   };
 
@@ -396,7 +218,7 @@ export const App = () => {
   const fetchAllIds = async () => {
     const acc = [];
     let p = 1;
-    const lim = 200; // pedir bastante para reducir vueltas
+    const lim = 200;
     while (true) {
       const res = await fetch(
         `${API_BASE}/data?page=${p}&limit=${lim}&sortBy=${sortBy}&order=${order}`
@@ -427,7 +249,6 @@ export const App = () => {
     setIsDeletingAll(true);
     setError(null);
     try {
-      // IDs existentes al inicio (los que queremos que se vayan)
       const initialIds = await fetchAllIds();
       if (initialIds.length === 0) {
         setPage(1);
@@ -436,7 +257,7 @@ export const App = () => {
         return;
       }
 
-      // 1) Intento masivo directo (aunque responda OK, verificamos)
+      // 1) Intento masivo directo
       try {
         await fetch(`${API_BASE}/data`, { method: "DELETE" });
       } catch {}
@@ -444,7 +265,7 @@ export const App = () => {
       let after = await fetchAllIds();
       let remaining = remainingOf(initialIds, after);
 
-      // 2) Si quedaron, intento bulk con IDs que aún siguen
+      // 2) Bulk con los que quedaron
       if (remaining.length > 0) {
         try {
           await fetch(`${API_BASE}/data/bulk-delete`, {
@@ -457,7 +278,7 @@ export const App = () => {
         remaining = remainingOf(initialIds, after);
       }
 
-      // 3) Si todavía quedaron, borro uno por uno por ID
+      // 3) Uno por uno por ID
       if (remaining.length > 0) {
         for (const id of remaining) {
           try {
@@ -466,27 +287,29 @@ export const App = () => {
         }
       }
 
-      // 4) Fallback final: si aún persiste alguno (p.ej. backend solo por índice),
-      // borramos por índice 0 en bucle hasta vaciar o hasta que falle.
+      // 4) Fallback por índice 0 (si backend indexa)
       after = await fetchAllIds();
       remaining = remainingOf(initialIds, after);
       if (remaining.length > 0) {
         for (let guard = 0; guard < remaining.length + 5; guard++) {
           try {
             const res = await fetch(`${API_BASE}/data/0`, { method: "DELETE" });
-            if (!res.ok) break; // cortamos si el endpoint no soporta índice
+            if (!res.ok) break;
           } catch {
             break;
           }
           const rest = await fetchAllIds();
-          if (rest.length === 0) break; // ya no queda nada
+          if (rest.length === 0) break;
         }
       }
 
-      // Refresco desde la página 1 (por si nos quedamos sin data)
       setPage(1);
       await fetchData();
       showToast("Se borraron todos los registros", "success");
+      pushHistory({
+        action: "delete_all",
+        detail: `${initialIds.length} items`,
+      });
     } catch (e) {
       setError(e?.message || "No se pudieron borrar todos los registros");
       showToast("Error al borrar todos", "error");
@@ -913,7 +736,7 @@ export const App = () => {
                   </div>
 
                   <div className="mt-4 flex justify-end gap-2">
-                    <IconButton
+                    {/*                     <IconButton
                       title="Guardar"
                       onClick={() => handleUpdate(i, row)}
                       dark={darkMode}
@@ -921,7 +744,7 @@ export const App = () => {
                     >
                       <Save size={16} />
                       Guardar
-                    </IconButton>
+                    </IconButton> */}
                     <IconButton
                       title="Eliminar"
                       onClick={() => handleDelete(row, i)}
@@ -968,6 +791,11 @@ export const App = () => {
             onCancel={() => setOpenCreate(false)}
           />
         </Modal>
+
+        {/* Historial CRUD */}
+        <div className="mx-auto max-w-6xl px-3 sm:px-4">
+          <ActivityLog items={history} onClear={clearHistory} dark={darkMode} />
+        </div>
       </div>
     </div>
   );
